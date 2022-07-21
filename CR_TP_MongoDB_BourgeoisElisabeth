@@ -1,0 +1,795 @@
+/*******************  COMPTE RENDU TP MONGO DB  *******************/
+/*******************  Elisabeth Bourgeois       *******************/
+/*******************  n° étudiant : 210440      *******************/
+/*******************  MS Big Data 2021-2022     *******************/
+
+
+
+--------------------------------------------------------------------
+Prélude : 
+Ouvrir un terminal, se placer dans le répertoire où se trouve le json à charger
+Exécuter la cmd mongoimport nomdufichier
+Lancer mongo (par la cmd mongo)
+Se placer sous la db voulue : use db_TP_Mongo
+Puis sous mongo : 
+db.createCollection("resto")   // resto est la collection qui me servira pour mon TP
+show collections // pour vérifier l'existence des 2 collections : DatasetRestaurants et resto
+db.datasetRestaurants.find().forEach( function(x){db.resto.insert(x)}) // copie datasetRestaurants dans resto
+db.resto.find() // pr vérifier le contenu de la collection
+db.resto.remove() // pr vider la collection
+--------------------------------------------------------------------
+Question 1 : Donnez la liste de tous les restaurants de la collection, triée par ordre de noms croissant
+db.resto.find({},{name:1, _id:0}).sort({name:1})
+--------------------------------------------------------------------
+Question 2
+db.resto.find({cuisine:'Italian'},{name:1, 'address.zipcode':1, 'address.coord':1, _id:0}).sort({'address.zipcode':1, name:-1})
+# si on voulait forcer l'affichage de tel var avant une autre (ex: afficher d'abord les "name", puis les "zipcode") il faudrait utiliser la méthode project
+--------------------------------------------------------------------
+Question 3:
+# En supposant qu'un restaurant italien est un restaurant où la cuisine est italienne
+db.resto.find({cuisine:'Italian', 'address.zipcode':'10075', telephoneNumber:{$exists:true}},{name:1, 'address.zipcode':1, telephoneNumber:1, _id:0}).sort({name:1, telephoneNumber:1, 'address.zipcode':1})
+--------------------------------------------------------------------
+Question 4 : 
+db.resto.find({'grades.score':{$gte:50}},{name:1, _id:0})
+--------------------------------------------------------------------
+Question 5 : 
+# En supposant qu'un restaurant italien est un restaurant où la cuisine est italienne
+db.resto.find({$or: [{cuisine:'Italian'}, {'address.zipcode':'10075'}]},{name:1,cuisine:1,'address.zipcode':1, _id:0})
+--------------------------------------------------------------------
+Question 6 : 
+db.resto.find({$and: [{cuisine:{ $in:["Italian","American"]}},{'address.zipcode':{ $in:['10075','10098']}}, {'grades.score' :{$gte:50}}]},{name:1,cuisine:1,'address.zipcode':1,_id:0})
+--------------------------------------------------------------------
+Question 7 : 
+db.resto.find({$and: [{'grades.grade':{ $in:['C','P','Q'] }},{'grades.score':{$exists:true}}]},{name:1,cuisine:1,'address.zipcode':1,_id:0})
+--------------------------------------------------------------------
+
+Question 8 : 
+Etape 1 :
+Commande : > db.resto.find( {"name": "Juni"}, {name:1, cuisine:1, _id:0})
+Output : { "cuisine" : "American", "name" : "Juni" }
+Etape 2 :
+Commande : > db.resto.update( {"name": "Juni"},{$currentDate:{"lastModified":true}, $set:{"cuisine":"American (new))"}})
+Output : WriteResult({ "nMatched" : 1, "nUpserted" : 0, "nModified" : 1 })
+Etape 3 (Verif) : 
+Commande : db.resto.find( {"name": "Juni"}, {name:1, cuisine:1, lastModified:1, _id:0})
+Output : { "cuisine" : "American (new)", "name" : "Juni", "lastModified" : ISODate("2021-10-13T20:50:58.691Z") }
+
+
+--------------------------------------------------------------------
+Question 9 : ​ Changez l’adresse du restaurant dont l’identifiant (​ restaurant_id​ ) est ​ "41156888" ​ en
+"East 31st Street"​ .
+#je suppose que nous ne souhaitons modifier que la rue
+Etape 1 : je cherche le restaurant à modifier pr être sûre de bien commencer l'exercice
+db.resto.find({"restaurant_id": "41156888"}).pretty()
+Etape 2 : j'update
+db.resto.update( {"restaurant_id": "41156888"},{$set:{'address.street':"East 31st Street"}})
+Etape 3 : je vérifie/constate la mise à jour : 
+db.resto.find({"restaurant_id": "41156888"}).pretty()
+
+--------------------------------------------------------------------
+
+Question 10 : 
+Etape 1 : trouver et compter le nb de mises à jour à prévoir
+Commande : db.resto.find( {"address.zipcode": "10016", cuisine:"Other"},{cuisine:1, _id:0, name:1})
+Output : 
+{ "cuisine" : "Other", "name" : "Marta" }
+{ "cuisine" : "Other", "name" : "29Th Street Hotel Acquisition Llc" }
+{ "cuisine" : "Other", "name" : "Veronica'S" }
+{ "cuisine" : "Other", "name" : "Little Town Social" }
+{ "cuisine" : "Other", "name" : "Open Kitchen" }
+{ "cuisine" : "Other", "name" : "Lahori Chicken Tikka Masala Inc" }
+{ "cuisine" : "Other", "name" : "Greek Gardens Grill" }
+{ "cuisine" : "Other", "name" : "Kokum" }
+{ "cuisine" : "Other", "name" : "Chola" }
+{ "cuisine" : "Other", "name" : "Haldi" }
+{ "cuisine" : "Other", "name" : "Raa Nyc Llc" }
+{ "cuisine" : "Other", "name" : "Chote Nawab" }
+{ "cuisine" : "Other", "name" : "Gregory'S Coffee" }
+{ "cuisine" : "Other", "name" : "" }
+{ "cuisine" : "Other", "name" : "Sons Of Thunder" }
+{ "cuisine" : "Other", "name" : "Lahori Tikka Masala" }
+{ "cuisine" : "Other", "name" : "Exki Ny 002 " }
+{ "cuisine" : "Other", "name" : "" }
+{ "cuisine" : "Other", "name" : "Buttercup Bake Shop" }
+{ "cuisine" : "Other", "name" : "" }
+Commande : db.resto.find( {"address.zipcode": "10016", cuisine:"Other"},{cuisine:1, _id:0, name:1}).count()
+Output : 20
+
+Etape 2 : procéder aux mises à jour.
+Commande : > db.resto.updateMany( {"address.zipcode": "10016", cuisine: "Other"},{$currentDate:{"lastModified":true}, $set:{"cuisine":"Cuisine to be determined"}})
+Output : { "acknowledged" : true, "matchedCount" : 20, "modifiedCount" : 20 }
+
+--------------------------------------------------------------------
+
+
+Question 11 : 
+#je souhaite remplacer tout le document, donc je n'utilise pas l'option $set
+#Etape 1 : je cherche et j'affiche tout le document dont le restaurant_id est 41154403
+Commande : db.resto.find({"restaurant_id": "41154403"},{"name":1, "address.city":1, "address.street":1, "address.zipcode":1, "_id":0})
+Output : { "address" : { "street" : "Union Street", "zipcode" : "11215" }, "name" : "Union Hall" }
+#Etape 2 : je réalise la mise à jour
+!! je suppose qu'il faut conserver l'id quand même
+Commande : 
+db.resto.update({restaurant_id: "41154403"},{name:'Vella 2', restaurant_id: "41154403",'address':{'city':'1480','street':'2 Avenue','zipcode':'10075'}})
+Output: WriteResult({ "nMatched" : 1, "nUpserted" : 0, "nModified" : 1 })
+#attention, les sous-documents d'un document doivent être exprimés sous la forme 'nom_doc':{'sousdoc1':val1, 'sousdoc2':val2} et non 'nom_doc.sousdoc1':val1, 'nom_doc.sousdoc2':val2
+#Etape 3 : je vérifier la mise à jour
+Commande : > db.resto.find({restaurant_id: "41154403"},{_id:0})
+Output : { "name" : "Vella 2", "restaurant_id" : "41154403", "address" : { "city" : "1480", "street" : "2 Avenue", "zipcode" : "10075" } }
+
+--------------------------------------------------------------------
+
+Question 12 : ​ 
+Commande : db.resto.aggregate([{$group:{_id:"$cuisine", nombre:{$sum:1}}},{$sort:{"nombre" :-1}}])
+Output : { "_id" : "American", "nombre" : 6179 }
+{ "_id" : "Chinese", "nombre" : 2417 }
+{ "_id" : "Café/Coffee/Tea", "nombre" : 1214 }
+....
+Verification : 
+Commande : db.resto.aggregate([{$group:{_id:"$cuisine", nombre:{$sum:1}}},{$sort:{"nombre" :-1}},{$count:"myCount"}])
+Output : { "myCount" : 88 }
+
+--------------------------------------------------------------------
+
+Question 13 : 
+Commande : db.resto.aggregate([{$group:{_id:"$address.zipcode", nombre:{$sum:1}}},{$sort:{"nombre" :-1}}])
+Output : { "_id" : "10003", "nombre" : 686 }
+{ "_id" : "10019", "nombre" : 674 }
+{ "_id" : "10036", "nombre" : 610 }
+{ "_id" : "10001", "nombre" : 520 }
+{ "_id" : "10022", "nombre" : 485 }
+....
+Verification : db.resto.aggregate([{$group:{_id:"$address.zipcode", nombre:{$sum:1}}},{$sort:{"nombre" :-1}},{$count:"myCount"}])
+Output : { "myCount" : 213 }
+
+
+--------------------------------------------------------------------
+
+Question 14 :
+Commande : 
+db.resto.aggregate([{$match:{restaurant_id:{$gte:"41205309"}, averagePrice:{$exists:true}}},{$group:{_id:"", moyenne:{$avg:"$averagePrice"}}},{$sort:{"moyenne" :-1}}])
+Output : { "_id" : "", "moyenne" : 25 }
+
+Commande : db.resto.aggregate([{$match:{restaurant_id:{$gte:"41205309"}, averagePrice:{$exists:true}}},{$group:{_id:"$address.zipcode", moyenne:{$avg:"$averagePrice"}}},{$sort:{"moyenne" :-1}}])
+# on a conservé le tri sur les moyennes décroissantes
+Output : 
+{} "_id" : "10013", "moyenne" : 35 }
+{ "_id" : "10019", "moyenne" : 30 }
+{ "_id" : "10022", "moyenne" : 20 }
+{ "_id" : "10038", "moyenne" : 20 }
+{ "_id" : "10036", "moyenne" : 10 }
+> 
+
+--------------------------------------------------------------------
+
+Question 15 :
+db.createCollection("comments") 
+
+--------------------------------------------------------------------
+
+Question 16 : 
+commande : 
+db.comments.insertMany([
+       {
+  	 "restaurant_id" : "40356731", 
+	 "client_id" : "65343126",
+	 "comment" : "Very good ice cream, with original tastes. Incredible.",
+	 "date" : ISODate("2021-04-15T04:05:00.000Z"),
+	 "type" : "positive"
+   },
+   {
+  	 "restaurant_id" : "40357217", 
+	 "client_id" : "638212794",
+	 "comment" : "Awful non cooked chicken. Please pass your way !",
+	 "date" : ISODate("2020-01-31T01:01:00.000Z"),
+	 "type" : "negative"
+   },
+   {
+  	 "restaurant_id" : "40361521", 
+	 "client_id" : "44689321",
+	 "comment" : "Restaurant has chosen the perect name for a perfect food. Wonderful cheesecake !",
+	 "date" : ISODate("2019-06-08T14:21:15.999Z"),
+	 "type" : "negative"
+   }
+])
+output : 
+{
+	"acknowledged" : true,
+	"insertedIds" : [
+		ObjectId("61689540d4eda13e51b9928d"),
+		ObjectId("61689540d4eda13e51b9928e"),
+		ObjectId("61689540d4eda13e51b9928f")
+	]
+}
+
+
+# je m'étais trompée de collection dans laquelle il fallait procéder aux insertions, j'ai pu corriger mon erreur en tapant : 
+commande : db.resto.deleteMany({client_id :{$in:["65343126", "638212794","44689321" ]}})
+output : { "acknowledged" : true, "deletedCount" : 3 }
+
+--------------------------------------------------------------------
+
+Question 17 : 
+Commande : 
+# La liste est présentée comme liste de commentaires avec les infos du resto associée. 
+db.comments.aggregate([{$lookup:{
+        from: "resto",
+        localField : "restaurant_id",
+        foreignField : "restaurant_id",
+        as : "resto"}},
+        {$project: {"comment":1, _id:0, "resto.name":1, "resto.cuisine":1, "resto.grades":1, "resto.address":1}}
+]).pretty()
+
+Output : 
+{
+	"comment" : "Very good ice cream, with original tastes. Incredible.",
+	"resto" : [
+		{
+			"address" : {
+				"building" : "1839",
+				"coord" : [
+					-73.9482609,
+					40.6408271
+				],
+				"street" : "Nostrand Avenue",
+				"zipcode" : "11226"
+			},
+			"cuisine" : "Ice Cream, Gelato, Yogurt, Ices",
+			"grades" : [
+				{
+					"date" : ISODate("2014-07-14T00:00:00Z"),
+					"grade" : "A",
+					"score" : 12
+				},
+				{
+					"date" : ISODate("2013-07-10T00:00:00Z"),
+					"grade" : "A",
+					"score" : 8
+				},
+				{
+					"date" : ISODate("2012-07-11T00:00:00Z"),
+					"grade" : "A",
+					"score" : 5
+				},
+				{
+					"date" : ISODate("2012-02-23T00:00:00Z"),
+					"grade" : "A",
+					"score" : 8
+				}
+			],
+			"name" : "Taste The Tropics Ice Cream"
+		}
+	]
+}
+{
+	"comment" : "Awful ...
+"
+
+--------------------------------------------------------------------
+
+Question 18 : 
+Commande : 
+db.comments.insertMany([
+       {
+  	 "restaurant_id" : "40356731", 
+	 "client_id" : "44343126",
+	 "comment" : "Definitevely giant.",
+	 "date" : ISODate("2021-07-11T04:06:00.000Z"),
+	 "type" : "positive"
+   },
+   {
+  	 "restaurant_id" : "40364355", 
+	 "client_id" : "558212794",
+	 "comment" : "My best advice : escape !",
+	 "date" : ISODate("2019-01-21T01:02:30.000Z"),
+	 "type" : "negative"
+   },
+   { 
+  	 "restaurant_id" : "40365348", 
+	 "client_id" : "44689321",
+	 "comment" : "Good place to relax with family !",
+	 "date" : ISODate("2021-05-08T14:21:15.999Z"),
+	 "type" : "positive"
+   },
+   {
+  	 "restaurant_id" : "40365726", 
+	 "client_id" : "44689321",
+	 "comment" : "I will never return back there, we wait 2 hours for the starters !",
+	 "date" : ISODate("2019-03-31T01:11:00.000Z"),
+	 "type" : "negative"
+   },
+   {
+  	 "restaurant_id" : "40366711", 
+	 "client_id" : "77689321",
+	 "comment" : "They confused red wine with grap juice, my son is now sick.",
+	 "date" : ISODate("2021-05-08T14:20:15.999Z"),
+	 "type" : "negative"
+   },
+   {
+  	 "restaurant_id" : "40366711", 
+	 "client_id" : "77689321",
+	 "comment" : "What an happy meal !",
+	 "date" : ISODate("2019-04-31T01:11:00.000Z"),
+	 "type" : "positive"
+   },
+   {
+  	 "restaurant_id" : "40369418", 
+	 "client_id" : "88689321",
+	 "comment" : "Vegetables smell cigarettes !",
+	 "date" : ISODate("2020-02-08T14:11:15.999Z"),
+	 "type" : "negative"
+   }     ])
+
+
+Output : 
+{
+	"acknowledged" : true,
+	"insertedIds" : [
+		ObjectId("6168a905d4eda13e51b99290"),
+		ObjectId("6168a905d4eda13e51b99291"),
+		ObjectId("6168a905d4eda13e51b99292"),
+		ObjectId("6168a905d4eda13e51b99293"),
+		ObjectId("6168a905d4eda13e51b99294"),
+		ObjectId("6168a905d4eda13e51b99295"),
+		ObjectId("6168a905d4eda13e51b99296")
+	]
+}
+
+
+--------------------------------------------------------------------
+
+Question 19 : 
+Trouvez la liste des restaurants ayant des commentaires, et affichez pour chaque restaurant
+uniquement le nom et la liste des commentaires
+
+db.resto.aggregate([{$lookup:{
+        from: "comments",
+        localField : "restaurant_id",
+        foreignField : "restaurant_id",
+        as : "Restocomment"}},
+        {$match:{ "Restocomment":{$ne:[]} }},
+        {$project: {"name":1, "Restocomment.comment":1, "_id":0}}])
+
+{$match:{ "Restocomment":{$exists:true} }} # NE MARCHE PAS !!
+#Attention , l'opérateur exists ne marche pas ! (la jointure rend implicite l'existence d'un comm?)
+
+--------------------------------------------------------------------
+
+Question 20 : 
+Commande : db.resto.createIndex( { cuisine: 1 } )
+Output : {
+	"createdCollectionAutomatically" : false,
+	"numIndexesBefore" : 1,
+	"numIndexesAfter" : 2,
+	"ok" : 1
+}
+
+--------------------------------------------------------------------
+
+Question 21 : 
+Commande : db.resto.createIndex( { cuisine: 1, zipcode: -1 } )
+Output : 
+{
+	"createdCollectionAutomatically" : false,
+	"numIndexesBefore" : 1,
+	"numIndexesAfter" : 2,
+	"ok" : 1
+}
+> db.resto.createIndex( { cuisine: 1, zipcode: -1 } )
+{
+	"createdCollectionAutomatically" : false,
+	"numIndexesBefore" : 2,
+	"numIndexesAfter" : 3,
+	"ok" : 1
+}
+
+--------------------------------------------------------------------
+
+Question 22 : 
+Commande : db.resto.getIndexes()
+Output : 
+[
+	{
+		"v" : 2,
+		"key" : {
+			"_id" : 1
+		},
+		"name" : "_id_",
+		"ns" : "db_TP_Mongo.resto"
+	},
+	{
+		"v" : 2,
+		"key" : {
+			"cuisine" : 1
+		},
+		"name" : "cuisine_1",
+		"ns" : "db_TP_Mongo.resto"
+	},
+	{
+		"v" : 2,
+		"key" : {
+			"cuisine" : 1,
+			"zipcode" : -1
+		},
+		"name" : "cuisine_1_zipcode_-1",
+		"ns" : "db_TP_Mongo.resto"
+	}
+]
+
+--------------------------------------------------------------------
+
+Question 23 : 
+Commande :  db.resto.find({cuisine:"Italian"}).explain()
+Output : 
+{
+	"queryPlanner" : {
+		"plannerVersion" : 1,
+		"namespace" : "db_TP_Mongo.resto",
+		"indexFilterSet" : false,
+		"parsedQuery" : {
+			"cuisine" : {
+				"$eq" : "Italian"
+			}
+		},
+		"winningPlan" : {
+			"stage" : "FETCH",
+			"inputStage" : {
+				"stage" : "IXSCAN",
+				"keyPattern" : {
+					"cuisine" : 1,
+					"zipcode" : -1
+				},
+				"indexName" : "cuisine_1_zipcode_-1",
+				"isMultiKey" : false,
+				"multiKeyPaths" : {
+					"cuisine" : [ ],
+					"zipcode" : [ ]
+				},
+				"isUnique" : false,
+				"isSparse" : false,
+				"isPartial" : false,
+				"indexVersion" : 2,
+				"direction" : "forward",
+				"indexBounds" : {
+					"cuisine" : [
+						"[\"Italian\", \"Italian\"]"
+					],
+					"zipcode" : [
+						"[MaxKey, MinKey]"
+					]
+				}
+			}
+		},
+		"rejectedPlans" : [
+			{
+				"stage" : "FETCH",
+				"inputStage" : {
+					"stage" : "IXSCAN",
+					"keyPattern" : {
+						"cuisine" : 1
+					},
+					"indexName" : "cuisine_1",
+					"isMultiKey" : false,
+					"multiKeyPaths" : {
+						"cuisine" : [ ]
+					},
+					"isUnique" : false,
+					"isSparse" : false,
+					"isPartial" : false,
+					"indexVersion" : 2,
+					"direction" : "forward",
+					"indexBounds" : {
+						"cuisine" : [
+							"[\"Italian\", \"Italian\"]"
+						]
+					}
+				}
+			}
+		]
+	},
+	"serverInfo" : {
+		"host" : "liz-HP-EliteBook-840-G2",
+		"port" : 27017,
+		"version" : "3.6.8",
+		"gitVersion" : "8e540c0b6db93ce994cc548f000900bdc740f80a"
+	},
+	"ok" : 1
+}
+
+
+Cette méthode donne : 
+   - explainVersion, the output format version (for example, "1");
+   - command, which details the command being explained;
+   - queryPlanner, which details the plan selected by the query optimizer and lists the rejected plans;
+   - executionStats, which details the execution of the winning plan and the rejected plans;
+   - serverInfo, which provides information on the MongoDB instance; and
+   - serverParameters, which details internal parameters.
+
+Plus exactement, pour Queryplanner (plan d'exécution)
+explain.queryPlanner.winningPlan
+
+    A document that details the plan selected by the query optimizer. MongoDB presents the plan as a tree of stages; i.e. a stage can have an inputStage or, if the stage has multiple child stages, inputStages.
+
+    explain.queryPlanner.winningPlan.stage
+
+        A string that denotes the name of the stage.
+
+        Each stage consists of information specific to the stage. For instance, an IXSCAN stage will include the index bounds along with other data specific to the index scan. If a stage has a child stage or multiple child stages, the stage will have an inputStage or inputStages.
+
+    explain.queryPlanner.winningPlan.inputStage
+
+        A document that describes the child stage, which provides the documents or index keys to its parent. The field is present if the parent stage has only one child.
+
+    explain.queryPlanner.winningPlan.inputStages
+
+        An array of documents describing the child stages. Child stages provide the documents or index keys to the parent stage. The field is present if the parent stage has multiple child nodes. For example, stages for $or expressions or index intersection consume input from multiple sources.
+
+explain.queryPlanner.rejectedPlans
+
+    Array of candidate plans considered and rejected by the query optimizer. The array can be empty if there were no other candidate plans.
+
+
+--------------------------------------------------------------------
+
+Question 24 : 
+Commande : > db.resto.find({cuisine:"Italian"}).explain("executionStats")
+Output : 
+{
+        "queryPlanner" : {
+                "plannerVersion" : 1,
+                "namespace" : "test.resto",
+                "indexFilterSet" : false,
+                "parsedQuery" : {
+                        "cuisine" : {
+                                "$eq" : "Italian"
+                        }
+                },
+                "winningPlan" : {
+                        "stage" : "FETCH",
+                        "inputStage" : {
+                                "stage" : "IXSCAN",
+                                "keyPattern" : {
+                                        "cuisine" : 1,
+                                        "zipcode" : -1
+                                },
+                                "indexName" : "cuisine_1_zipcode_-1",
+                                "isMultiKey" : false,
+                                "multiKeyPaths" : {
+                                        "cuisine" : [ ],
+                                        "zipcode" : [ ]
+                                },
+                                "isUnique" : false,
+                                "isSparse" : false,
+                                "isPartial" : false,
+                                "indexVersion" : 2,
+                                "direction" : "forward",
+                                "indexBounds" : {
+                                        "cuisine" : [
+                                                "[\"Italian\", \"Italian\"]"
+                                        ],
+                                        "zipcode" : [
+                                                "[MaxKey, MinKey]"
+                                        ]
+                                }
+                        }
+                },
+                "rejectedPlans" : [
+                        {
+                                "stage" : "FETCH",
+                                "inputStage" : {
+                                        "stage" : "IXSCAN",
+                                        "keyPattern" : {
+                                                "cuisine" : 1
+                                        },
+                                        "indexName" : "cuisine_1",
+                                        "isMultiKey" : false,
+                                        "multiKeyPaths" : {
+                                                "cuisine" : [ ]
+                                        },
+                                        "isUnique" : false,
+                                        "isSparse" : false,
+                                        "isPartial" : false,
+                                        "indexVersion" : 2,
+                                        "direction" : "forward",
+                                        "indexBounds" : {
+                                                "cuisine" : [
+                                                        "[\"Italian\", \"Italian\"]"
+                                                ]
+                                        }
+                                }
+                        }
+                ]
+        },
+        "executionStats" : {
+                "executionSuccess" : true,
+                "nReturned" : 1070,
+                "executionTimeMillis" : 3,
+                "totalKeysExamined" : 1070,
+                "totalDocsExamined" : 1070,
+                "executionStages" : {
+                        "stage" : "FETCH",
+                        "nReturned" : 1070,
+                        "executionTimeMillisEstimate" : 0,
+                        "works" : 1071,
+                        "advanced" : 1070,
+                        "needTime" : 0,
+                        "needYield" : 0,
+                        "saveState" : 9,
+                        "restoreState" : 9,
+                        "isEOF" : 1,
+                        "invalidates" : 0,
+                        "docsExamined" : 1070,
+                        "alreadyHasObj" : 0,
+                        "inputStage" : {
+                                "stage" : "IXSCAN",
+                                "nReturned" : 1070,
+                                "executionTimeMillisEstimate" : 0,
+                                "works" : 1071,
+                                "advanced" : 1070,
+                                "needTime" : 0,
+                                "needYield" : 0,
+                                "saveState" : 9,
+                                "restoreState" : 9,
+                                "isEOF" : 1,
+                                "invalidates" : 0,
+                                "keyPattern" : {
+                                        "cuisine" : 1,
+                                        "zipcode" : -1
+                                },
+                                "indexName" : "cuisine_1_zipcode_-1",
+                                "isMultiKey" : false,
+                                "multiKeyPaths" : {
+                                        "cuisine" : [ ],
+                                        "zipcode" : [ ]
+                                },
+                                "isUnique" : false,
+                                "isSparse" : false,
+                                "isPartial" : false,
+                                "indexVersion" : 2,
+                                "direction" : "forward",
+                                "indexBounds" : {
+                                        "cuisine" : [
+                                                "[\"Italian\", \"Italian\"]"
+                                        ],
+                                        "zipcode" : [
+                                                "[MaxKey, MinKey]"
+                                        ]
+                                },
+                                "keysExamined" : 1070,
+                                "seeks" : 1,
+                                "dupsTested" : 0,
+                                "dupsDropped" : 0,
+                                "seenInvalidated" : 0
+                        }
+                }
+        },
+        "serverInfo" : {
+                "host" : "liz-HP-EliteBook-840-G2",
+                "port" : 27017,
+                "version" : "3.6.8",
+                "gitVersion" : "8e540c0b6db93ce994cc548f000900bdc740f80a"
+        },
+        "ok" : 1
+}
+
+L'argument "executionStats" fait afficher les performances quant à l'exécution de la requête. 
+On voit ici entre autres, que : 
+- la requête a abouti avec succès -->  "executionSuccess" : true
+- qu'elle retourne 1070 items : --> 	"nReturned" : 1070
+- le temps d'exécution de la requête + temps de récupération du plan d'exécution : --> "executionTimeMillis" : 3
+- le nombre d'index des documents récupéré par la requête qui ont été parcouru ---> "totalKeysExamined" : 1070
+- le nombre de documents analysés --> "totalDocsExamined" : 1070,
+
+La requête a donc bien utilisé l'index pour la totalité des items satisfaisant la requête. 
+
+--------------------------------------------------------------------
+
+Question 25 : 
+Pour supprimer les deux index créés, je récupère leur nom : 
+> db.resto.getIndexes()
+[
+        {
+                "v" : 2,
+                "key" : {
+                        "_id" : 1
+                },
+                "name" : "_id_",
+                "ns" : "test.resto"
+        },
+        {
+                "v" : 2,
+                "key" : {
+                        "cuisine" : 1
+                },
+                "name" : "cuisine_1",
+                "ns" : "test.resto"
+        },
+        {
+                "v" : 2,
+                "key" : {
+                        "cuisine" : 1,
+                        "zipcode" : -1
+                },
+                "name" : "cuisine_1_zipcode_-1",
+                "ns" : "test.resto"
+        }
+]
+
+.... Puis je supprime : 
+
+Commande : > db.resto.dropIndex("cuisine_1")
+Output : { "nIndexesWas" : 3, "ok" : 1 }
+Commande : > db.resto.dropIndex("cuisine_1_zipcode_-1")
+Output : { "nIndexesWas" : 2, "ok" : 1 }
+
+... Enfin, je reéxecute le plan d'exéction de la query : 
+COmmande :  > db.resto.find({cuisine:"Italian"}).explain("executionStats")
+
+> db.resto.find({cuisine:"Italian"}).explain("executionStats")
+{
+        "queryPlanner" : {
+                "plannerVersion" : 1,
+                "namespace" : "test.resto",
+                "indexFilterSet" : false,
+                "parsedQuery" : {
+                        "cuisine" : {
+                                "$eq" : "Italian"
+                        }
+                },
+                "winningPlan" : {
+                        "stage" : "COLLSCAN",
+                        "filter" : {
+                                "cuisine" : {
+                                        "$eq" : "Italian"
+                                }
+                        },
+                        "direction" : "forward"
+                },
+                "rejectedPlans" : [ ]
+        },
+        "executionStats" : {
+                "executionSuccess" : true,
+                "nReturned" : 1070,
+                "executionTimeMillis" : 19,
+                "totalKeysExamined" : 0,
+                "totalDocsExamined" : 25356,
+                "executionStages" : {
+                        "stage" : "COLLSCAN",
+                        "filter" : {
+                                "cuisine" : {
+                                        "$eq" : "Italian"
+                                }
+                        },
+                        "nReturned" : 1070,
+                        "executionTimeMillisEstimate" : 20,
+                        "works" : 25358,
+                        "advanced" : 1070,
+                        "needTime" : 24287,
+                        "needYield" : 0,
+                        "saveState" : 198,
+                        "restoreState" : 198,
+                        "isEOF" : 1,
+                        "invalidates" : 0,
+                        "direction" : "forward",
+                        "docsExamined" : 25356
+                }
+        },
+        "serverInfo" : {
+                "host" : "liz-HP-EliteBook-840-G2",
+                "port" : 27017,
+                "version" : "3.6.8",
+                "gitVersion" : "8e540c0b6db93ce994cc548f000900bdc740f80a"
+        },
+        "ok" : 1
+}
+
+Commentaire : 
+La requête a bien abouti, et retourne le même nombre d'items. 
+Néanmoins le temps d'exécution + récupérationd du plan d'exécution est plus de 
+6 fois plus important. Ceci s'explique par l'absence d'index parcouru et donc
+l'obligation pour la requête d'aller parcourir et examniner la totalité de 
+la collection resto soit 25356 documents. 
+
+--------------------------------------------------------------------
+Fin du compte-rendu
+--------------------------------------------------------------------
